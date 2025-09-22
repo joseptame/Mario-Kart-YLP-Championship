@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Torneo YLP Mario Kart – Gestor de Puntos</title>
+  <style>
+    :root{
+      --bg:#0b0d14;
+      --card:#141826;
+      --card-2:#1b2133;
+      --text:#f8f9ff;
+      --muted:#a3acd1;
+      --accent:#ff2244;
+      --ok:#31e981;
+      --warning:#ffcc00;
+      --danger:#ff2d75;
+      --border:#26304a;
+      --rainbow: linear-gradient(90deg, #ff1a1a, #ff7a00, #ffd400, #38d430, #00a6ff, #7a00ff, #ff00d4);
+      /* SVG del checker ENCODADO para evitar errores de parser (<, >, ") */
+      --checker:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Crect width='10' height='10' fill='%23222'/%3E%3Crect x='10' y='10' width='10' height='10' fill='%23222'/%3E%3C/svg%3E");
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:radial-gradient(1200px 600px at 20% -20%, rgba(255,255,255,.06), transparent 60%), var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header{
+      position:relative;
+      padding:24px 16px 18px; text-align:center; border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.0)), var(--card);
+    }
+    .mk-rainbow{
+      display:inline-block; padding:10px 16px; border-radius:14px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; font-size: clamp(22px, 4vw, 34px);
+      background: var(--rainbow); -webkit-background-clip:text; background-clip:text; color:transparent;
+      filter: drop-shadow(0 1px 0 rgba(0,0,0,.5));
+    }
+    .sub{ margin-top:6px; color:var(--muted); font-size:14px }
+    .belt{ position:absolute; inset:auto 0 -12px 0; height:24px; background-image:var(--checker); background-size:24px 24px; opacity:.25; }
+
+    main{max-width:1100px; margin:32px auto; padding:0 16px;}
+    .grid{display:grid; gap:16px}
+    @media(min-width:900px){ .grid{grid-template-columns: 1.2fr .8fr} }
+
+    .card{background:linear-gradient(180deg, var(--card), var(--card-2)); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0; padding:14px 16px; font-size:18px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.03)}
+    .card .content{padding:16px}
+
+    .toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px}
+    button, .btn{
+      border:1px solid var(--border); background:#1c2439; color:var(--text); padding:10px 12px; border-radius:10px; font-weight:600; cursor:pointer; transition:.2s transform, .2s background;
+    }
+    button:hover{transform: translateY(-1px); background:#222b45}
+    .btn-accent{background:linear-gradient(180deg, #2a2f47, #1b2238); border-color:#364066}
+    .btn-danger{background:#331426; border-color:#612645}
+    .btn-ok{background:#193626; border-color:#2a6b4d}
+
+    table{width:100%; border-collapse: collapse; overflow:auto}
+    th, td{border-bottom:1px solid var(--border); padding:10px; text-align:left; vertical-align:middle}
+    th{font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+    tr:last-child td{border-bottom:none}
+
+    .row{ display:flex; align-items:center; gap:10px; }
+    .avatar{ width:42px; height:42px; border-radius:50%; background:#0d1120; border:1px solid var(--border); overflow:hidden; flex:0 0 auto; display:grid; place-items:center; font-weight:800; color:#95a0c7 }
+    .avatar img{width:100%; height:100%; object-fit:cover}
+    .name{min-width:160px}
+    input[type="text"]{width:100%; padding:8px 10px; background:#10172b; border:1px solid var(--border); border-radius:10px; color:var(--text)}
+    input[type="number"]{width:80px; padding:8px 10px; background:#10172b; border:1px solid var(--border); border-radius:10px; color:var(--text)}
+    input[type="file"]{display:none}
+    .file-label{font-size:12px; padding:6px 10px; border:1px dashed var(--border); border-radius:8px; cursor:pointer; color:var(--muted)}
+
+    .total{font-weight:800}
+    .leaderboard .slot{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#121a2f}
+    .leaderboard .slot .pos{width:28px; height:28px; border-radius:7px; display:grid; place-items:center; font-weight:900; background:#0e1430; border:1px solid var(--border)}
+    .leaderboard .slot.top{outline:2px solid #ffd40055; background:linear-gradient(180deg,#171f35,#1b2138)}
+    .leaderboard .slot .name{font-weight:700}
+
+    .footer-note{margin-top:10px; color:var(--muted); font-size:12px}
+    .pill{display:inline-block; padding:4px 8px; font-size:12px; border-radius:999px; border:1px solid var(--border); background:#10172b; color:#var(--muted)}
+    .rainbow-line{height:3px; background:var(--rainbow); border-radius:999px}
+
+    /* Full-width Final Four bar */
+    .ffbar{max-width:1100px;margin:20px auto 32px;padding:0 16px}
+    .ffwrap{border:1px solid var(--border);background:linear-gradient(180deg,var(--card),var(--card-2));border-radius:16px;overflow:hidden}
+    .ffhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .ffgrid {display:grid;grid-template-columns: 1fr;   /* 👈 1 columna en móviles */gap:12px;padding:14px;}
+    @media(min-width:700px){.ffgrid{grid-template-columns:repeat(2,1fr)}  /* tablet: 2 columnas */}
+    @media(min-width:1000px){.ffgrid{grid-template-columns:repeat(4,1fr)}  /* escritorio: 4 columnas */}
+    .ff-item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#121a2f;cursor:pointer;transition:transform .15s}
+    .ff-item:hover{transform:translateY(-2px)}
+    .ff-item .avatar{width:56px;height:56px}
+    .ff-item .name{font-weight:800}
+
+    /* Champion modal con fade in/out */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: grid;                 /* siempre grid */
+      place-items: center;
+      background: rgba(0,0,0,.6);
+      z-index: 50;
+
+      opacity: 0;                    /* oculto por defecto */
+      pointer-events: none;
+      transition: opacity .4s ease;  /* transición de fondo */
+    }
+
+    .modal.show {
+      opacity: 1;                    /* visible con fade */
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: min(560px,92vw);
+      background: linear-gradient(180deg,#151a2b,#1b2338);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+
+      opacity: 0;
+      transform: translateY(12px) scale(.97); /* empieza más abajo y reducido */
+      transition: opacity .4s ease, transform .4s ease;
+    }
+
+    .modal.show .modal-card {
+      opacity: 1;
+      transform: translateY(0) scale(1);       /* animación hacia su posición */
+    }
+
+    .crown { font-size: 42px; line-height: 1; }
+    .champion-avatar {
+      width: 140px; height: 140px;
+      margin: 12px auto;
+      border-radius: 20px;
+      border: 2px solid var(--warning);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: #0d1120;
+    }
+    .champion-name { font-size: 26px; font-weight: 900; margin: 6px 0 2px; }
+    .champion-sub { color: var(--muted); font-size: 13px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .modal-actions .btn { min-width: 140px; }
+
+  /* ====== Presentación a pantalla completa ====== */
+  .presentation-overlay{
+    position:fixed; inset:0; z-index:9999;
+    display:grid; place-items:center; /* 👈 siempre grid */
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,.08), rgba(0,0,0,.85) 60%), rgba(0,0,0,.85);
+    backdrop-filter: blur(2px);
+
+    opacity:0;
+    pointer-events:none; /* 👈 bloquea clics mientras está oculto */
+    transition: opacity .6s ease; /* 👈 efecto más suave */
+  }
+  .presentation-overlay.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  .presentation-track{
+    position:relative; width:min(900px, 92vw); height:min(520px, 70vh);
+    display:grid; place-items:center;
+  }
+
+  .presentation-card{
+    position:absolute; inset:0; margin:auto;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    padding:26px; border-radius:22px;
+    background: linear-gradient(180deg, #141826cc, #1b2133dd);
+    border:1px solid var(--border);
+    box-shadow: 0 25px 80px rgba(0,0,0,.55);
+    opacity:0; transform: scale(.975);
+    transition: opacity .6s ease, transform .6s ease;
+  }
+  .presentation-card.show{ opacity:1; transform: scale(1); }
+
+  .presentation-avatar{
+    width:min(260px, 60%); height:min(260px, 60%);
+    border-radius:22px; overflow:hidden; border:2px solid var(--warning);
+    background:#0d1120; display:grid; place-items:center; font-size:64px; font-weight:900; color:#95a0c7;
+  }
+  .presentation-avatar img{ width:100%; height:100%; object-fit:cover; }
+
+  .presentation-name{
+    font-size: clamp(28px, 5vw, 40px); font-weight:900;
+    text-align:center;
+  }
+
+  .presentation-sub{ color:var(--muted); font-size:14px; text-align:center; }
+
+  .presentation-hint{ 
+    position:absolute; bottom:18px; left:50%; transform:translateX(-50%); 
+    color:#cbd5ff; font-size:12px; opacity:.8 
+  }
+
+  /* Fijar columnas Jugador y Foto */
+  #scoreTable th:first-child,
+  #scoreTable td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--card);      /* fondo para tapar contenido al hacer scroll */
+    z-index: 2;                   /* asegurar que se ve por encima */
+  }
+
+  #scoreTable th:nth-child(2),
+  #scoreTable td:nth-child(2) {
+    position: sticky;
+    left: 160px;                  /* 👈 ancho de la primera columna aprox */
+    background: var(--card);
+    z-index: 2;
+  }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="mk-rainbow">Torneo Oficial YLP · Mario Kart</div>
+    <div class="sub">Gestor de puntos · Liguilla + Final Four</div>
+    <div class="belt"></div>
+  </header>
+
+  <main class="grid">
+    <!-- MARCADOR / ENTRADA DE PUNTOS -->
+    <section class="card">
+      <h2>Marcador de liga <span class="pill" id="roundsPill">0 rondas</span></h2>
+      <div class="content">
+        <div class="toolbar">
+          <button id="addRound" class="btn btn-accent">➕ Añadir ronda</button>
+          <button id="removeRound" class="btn btn-danger">➖ Quitar última ronda</button>
+          <button id="saveState" class="btn btn-ok">💾 Guardar</button>
+          <button id="resetState" class="btn btn-danger">🗑️ Reiniciar</button>
+          <button id="startPresentation" class="btn btn-accent">🎬 Presentación</button>
+        </div>
+
+        <div class="rainbow-line"></div>
+
+        <div style="overflow:auto; margin-top:12px">
+          <table id="scoreTable">
+            <thead>
+              <tr id="headRow">
+                <th>Jugador</th>
+                <th>Foto</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="bodyRows"></tbody>
+          </table>
+        </div>
+        <div class="footer-note">Consejo: añade tantas rondas como necesites (una copa = 4 circuitos). Los totales se calculan automáticamente.</div>
+      </div>
+    </section>
+
+    <!-- CLASIFICACIÓN -->
+    <aside class="card">
+      <h2>Clasificación</h2>
+      <div class="content">
+        <div class="leaderboard" id="leaderboard" style="display:grid; gap:10px"></div>
+        <div class="toolbar" style="margin-top:12px">
+          <button id="assignFinalFour" class="btn btn-accent">🏆 Asignar Final Four</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- FINAL FOUR full-width strip -->
+  <section id="ffBar" class="ffbar" style="display:none">
+    <div class="ffwrap">
+      <div class="ffhead">
+        <strong>🏆 Final Four</strong>
+        <span class="pill">Pulsa un finalista para coronarlo campeón</span>
+      </div>
+      <div id="ffGrid" class="ffgrid"></div>
+    </div>
+  </section>
+
+  <!-- Champion modal -->
+  <div id="championModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="crown">👑</div>
+      <div class="champion-avatar" id="championAvatar"></div>
+      <div class="champion-name" id="championName">Ganador YLP Championship</div>
+      <div class="champion-sub">Torneo Oficial YLP · Mario Kart</div>
+      <div class="modal-actions">
+        <button id="closeChampion" class="btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎵 Canción del campeón -->
+  <audio id="championSong">
+    <source src="champions.mp3" type="audio/mpeg">
+  </audio>
+
+
+    
+  <!-- 🎬 Presentación (overlay a pantalla completa) -->
+  <div id="presentationOverlay" class="presentation-overlay" aria-hidden="true">
+    <div class="presentation-track" id="presentationTrack"></div>
+    <div class="presentation-hint">Haz clic o pulsa ESC para salir</div>
+  </div>
+
+  <!-- 🎵 Canción Champions League para la presentación -->
+  <audio id="presentationSong">
+    <source src="uefa.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // ---- Datos iniciales ----
+    const initialPlayers = [
+      { name: 'Fusty',  photo: 'Fotos/Fusty.jpeg' },
+      { name: 'Xeri',   photo: 'Fotos/Xeri.jpeg' },
+      { name: 'Campos', photo: 'Fotos/Campos.jpeg' },
+      { name: 'Pepe',   photo: 'Fotos/Pepe.jpeg' },
+      { name: 'Iván',   photo: 'Fotos/Ivan.jpeg' },
+      { name: 'Jose',   photo: 'Fotos/Jose.jpeg' },
+      { name: 'Arturo', photo: 'Fotos/Arturo.jpeg' },
+    ];
+
+    // Estado en memoria
+    let state = {
+      rounds: 0,
+      players: initialPlayers.map(p => ({...p, scores: []})),
+      finalFour: [],
+      champion: null
+    };
+
+    // Intentar cargar del almacenamiento local
+    const saved = localStorage.getItem('ylp-mk-torneo');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.players && Array.isArray(parsed.players)) {
+          state = parsed;
+          if (state.champion === undefined) state.champion = null;
+        }
+      } catch (e) { console.warn('No se pudo cargar el guardado:', e); }
+    }
+
+    const headRow = document.getElementById('headRow');
+    const bodyRows = document.getElementById('bodyRows');
+    const roundsPill = document.getElementById('roundsPill');
+    const leaderboard = document.getElementById('leaderboard');
+    const ffBar = document.getElementById('ffBar');
+    const ffGrid = document.getElementById('ffGrid');
+    const championModal = document.getElementById('championModal');
+    const championNameEl = document.getElementById('championName');
+    const championAvatarEl = document.getElementById('championAvatar');
+
+    // Render tabla completa
+    function renderTable(){
+      // Cabecera dinámica de rondas
+      headRow.innerHTML = '<th>Jugador</th><th>Foto</th>' +
+        Array.from({length: state.rounds}, (_,i)=>`<th>R${i+1}</th>`).join('') +
+        '<th>Total</th>';
+
+      roundsPill.textContent = `${state.rounds} ${state.rounds===1?'ronda':'rondas'}`;
+
+      // Cuerpo
+      bodyRows.innerHTML = '';
+      state.players.forEach((player, idx)=>{
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        const photoTd = document.createElement('td');
+
+        // Jugador (nombre editable)
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = player.name;
+        nameInput.className = 'name';
+        nameInput.addEventListener('input', ()=>{ player.name = nameInput.value; renderLeaderboard(); saveState(false); });
+        nameTd.appendChild(nameInput);
+
+        // Foto (avatar + file input + label)
+        const row = document.createElement('div');
+        row.className = 'row';
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        if (player.photo) {
+          const img = document.createElement('img');
+          img.src = player.photo; avatar.appendChild(img);
+        } else {
+          avatar.textContent = initials(player.name);
+        }
+        const fileInput = document.createElement('input');
+        const fileId = `file-${idx}`; // ID estable por jugador
+        fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.id = fileId;
+        fileInput.addEventListener('change', async ()=>{
+          const file = fileInput.files[0];
+          if (!file) return;
+          const dataURL = await fileToDataURL(file);
+          player.photo = dataURL;
+          // Actualizar solo avatar de la fila
+          avatar.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = dataURL; avatar.appendChild(img);
+          updateTotalsInRow(tr, player);
+          renderLeaderboard();
+          saveState();
+        });
+        const label = document.createElement('label');
+        //label.htmlFor = fileId; label.className = 'file-label'; label.textContent = 'Subir foto';
+        row.appendChild(avatar); row.appendChild(label); row.appendChild(fileInput);
+        photoTd.appendChild(row);
+
+        tr.appendChild(nameTd);
+        tr.appendChild(photoTd);
+
+        // Celdas de rondas (números)
+        for (let r=0; r<state.rounds; r++){
+          const td = document.createElement('td');
+          const num = document.createElement('input');
+          num.type = 'number'; num.min = '0'; num.step = '1'; num.placeholder='0';
+          num.value = Number(player.scores[r] ?? '').toString();
+          num.addEventListener('input', ()=>{
+            const val = Number(num.value || 0);
+            player.scores[r] = val;
+            updateTotalsInRow(tr, player);
+            renderLeaderboard();
+            saveState(false);
+          });
+          td.appendChild(num);
+          tr.appendChild(td);
+        }
+
+        // Total
+        const totalTd = document.createElement('td');
+        totalTd.className = 'total';
+        totalTd.textContent = sum(player.scores);
+        tr.appendChild(totalTd);
+
+        bodyRows.appendChild(tr);
+      });
+
+      renderLeaderboard();
+    }
+
+    function updateTotalsInRow(tr, player){
+      const totalCell = tr.querySelector('.total');
+      if (totalCell) totalCell.textContent = sum(player.scores);
+    }
+
+    function renderLeaderboard(){
+      // Ordenar copia por total desc
+      const ranked = state.players.map((p,i)=>({
+        idx:i,
+        name:p.name,
+        photo:p.photo,
+        total: sum(p.scores)
+      })).sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
+
+      leaderboard.innerHTML = '';
+      ranked.forEach((p, i)=>{
+        const slot = document.createElement('div');
+        slot.className = 'slot' + (i<4 ? ' top' : '');
+
+        const pos = document.createElement('div');
+        pos.className = 'pos'; pos.textContent = String(i+1);
+
+        const av = document.createElement('div');
+        av.className = 'avatar';
+        if (p.photo){ const img=document.createElement('img'); img.src=p.photo; av.appendChild(img); }
+        else { av.textContent = initials(p.name); }
+
+        const info = document.createElement('div');
+        info.style.display='flex'; info.style.flexDirection='column'; info.style.gap='2px';
+        const nm = document.createElement('div'); nm.className='name'; nm.textContent = p.name;
+        const pill = document.createElement('div'); pill.className='pill'; pill.textContent = `${p.total} pts`;
+        info.appendChild(nm); info.appendChild(pill);
+
+        slot.appendChild(pos); slot.appendChild(av); slot.appendChild(info);
+        leaderboard.appendChild(slot);
+      });
+    }
+
+    function assignFinalFour(){
+      const ranked = state.players.map((p)=>({ name:p.name, photo:p.photo, total: sum(p.scores) }))
+        .sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
+      state.finalFour = ranked.slice(0,4);
+      renderFinalFourBar();
+      saveState();
+    }
+
+    function renderFinalFourBar(){
+      if (!state.finalFour || state.finalFour.length === 0){ ffBar.style.display='none'; ffGrid.innerHTML=''; return; }
+      ffBar.style.display = 'block';
+      ffGrid.innerHTML = '';
+      state.finalFour.forEach((p)=>{
+        const el = document.createElement('div');
+        el.className = 'ff-item';
+
+        const av = document.createElement('div');
+        av.className = 'avatar';
+        if (p.photo){ const img = document.createElement('img'); img.src = p.photo; av.appendChild(img); }
+        else { av.textContent = initials(p.name); }
+
+        const info = document.createElement('div');
+        const nm = document.createElement('div'); nm.className='name'; nm.textContent = p.name;
+        const pill = document.createElement('div'); pill.className='pill'; pill.textContent = `${p.total ?? 0} pts`;
+        info.appendChild(nm); info.appendChild(pill);
+
+        el.appendChild(av); el.appendChild(info);
+        el.addEventListener('click', ()=> openChampion(p));
+        ffGrid.appendChild(el);
+      });
+    }
+
+    function openChampion(p){
+      state.champion = p; saveState(false);
+      championNameEl.textContent = `Ganador YLP Championship: ${p.name}`;
+      championAvatarEl.innerHTML = '';
+      if (p.photo){ 
+        const img=document.createElement('img');
+        img.style.width='100%'; 
+        img.style.height='100%'; 
+        img.style.objectFit='cover'; 
+        img.src=p.photo; 
+        championAvatarEl.appendChild(img); 
+      } else { 
+        championAvatarEl.textContent = initials(p.name); 
+      }
+      championModal.classList.add('show');
+      championModal.setAttribute('aria-hidden','false');
+
+      // 🔊 Reproducir canción
+      const song = document.getElementById('championSong');
+      if (song) {
+        song.currentTime = 0; // reinicia al principio
+        song.play().catch(err => console.log("Error reproduciendo audio:", err));
+      }
+    }
+    function closeChampion(){
+      championModal.classList.remove('show');
+      championModal.setAttribute('aria-hidden','true');
+
+      // ⏸️ Pausar canción
+      const song = document.getElementById('championSong');
+      if (song) {
+        song.pause();
+        song.currentTime = 0;
+      }
+    }
+
+    // Utilidades
+    const sum = (arr)=> (arr||[]).reduce((a,b)=> a + (Number(b)||0), 0);
+    function initials(name){
+      const parts = (name||'').trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return '?';
+      const s = (parts[0][0]||'') + (parts[1]?.[0]||'');
+      return s.toUpperCase();
+    }
+    function fileToDataURL(file){
+      return new Promise((resolve,reject)=>{
+        const reader = new FileReader();
+        reader.onload = ()=> resolve(reader.result);
+        reader.onerror = reject; reader.readAsDataURL(file);
+      });
+    }
+    const escapeHtml = (s)=> String(s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+    // Acciones de UI
+    document.getElementById('addRound').addEventListener('click', ()=>{
+      state.rounds++;
+      state.players.forEach(p=>{ if (p.scores.length < state.rounds) p.scores[state.rounds-1] = 0; });
+      renderTable(); saveState(false);
+    });
+    document.getElementById('removeRound').addEventListener('click', ()=>{
+      if (state.rounds <= 0) return;
+      state.rounds--;
+      state.players.forEach(p=> p.scores = p.scores.slice(0, state.rounds));
+      renderTable(); saveState(false);
+    });
+    document.getElementById('saveState').addEventListener('click', ()=> saveState(true));
+    document.getElementById('resetState').addEventListener('click', ()=>{
+      if (!confirm('¿Seguro que quieres reiniciar el torneo?')) return;
+      // Borrar almacenamiento y estado
+      localStorage.removeItem('ylp-mk-torneo');
+      state = { rounds: 0, players: initialPlayers.map(p=>({...p, scores:[]})), finalFour: [], champion: null };
+
+      // Ocultar y limpiar Final Four (barra)
+      ffBar.style.display = 'none';
+      ffGrid.innerHTML = '';
+      closeChampion();
+
+      // Re-render general
+      renderTable();
+    });
+    document.getElementById('assignFinalFour').addEventListener('click', assignFinalFour);
+    document.getElementById('closeChampion').addEventListener('click', closeChampion);
+
+    function saveState(showToast){
+      try{
+        localStorage.setItem('ylp-mk-torneo', JSON.stringify(state));
+        if (showToast) notify('Guardado ✅');
+      }catch(e){ notify('No se pudo guardar'); }
+    }
+
+    // Mini toast
+    function notify(msg){
+      const el = document.createElement('div');
+      el.textContent = msg; el.style.cssText = `
+        position:fixed; left:50%; transform:translateX(-50%);
+        bottom:22px; background:#0e1428; color:#e6ecff; border:1px solid var(--border);
+        padding:10px 14px; border-radius:10px; box-shadow:0 10px 20px rgba(0,0,0,.35); z-index:9999`;
+      document.body.appendChild(el); setTimeout(()=> el.remove(), 1400);
+    }
+
+    // Inicializar vista
+    renderTable();
+    // Ocultar Final Four hasta pulsar el botón
+    ffBar.style.display = 'none';
+    ffGrid.innerHTML = '';
+
+    // =============================
+    // Tests rápidos (consola)
+    // =============================
+    (function runSelfTests(){
+      try {
+        console.assert(typeof assignFinalFour === 'function', 'assignFinalFour debería existir');
+        console.assert(Array.isArray(state.players) && state.players.length === 7, 'Debe haber 7 jugadores');
+        console.assert(typeof renderTable === 'function', 'renderTable debería existir');
+        console.assert(ffBar.style.display !== 'block', 'Final Four (barra) no debe mostrarse hasta pulsar el botón');
+        // Extra: asignar FF crea 4 finalistas y muestra barra
+        const prev = state.finalFour.length; assignFinalFour();
+        console.assert(state.finalFour.length === 4, 'Final Four debe tener 4 jugadores');
+        console.assert(ffBar.style.display === 'block', 'La barra de Final Four debe mostrarse');
+        // Reset limpia barra y estado
+        document.getElementById('resetState').click();
+        console.assert(state.rounds === 0 && state.finalFour.length === 0, 'Reset debe limpiar estado');
+        console.assert(ffBar.style.display !== 'block', 'Tras reset la barra debe ocultarse');
+      } catch(e){ console.warn('SelfTests:', e); }
+    })();
+
+
+    // ====== Presentación / Carrusel ======
+    const presentationOverlay = document.getElementById('presentationOverlay');
+    const presentationTrack   = document.getElementById('presentationTrack');
+    const presentationSong    = document.getElementById('presentationSong');
+    let presentationTimer = null;
+    let presentationIndex = 0;
+    const SLIDE_MS = 5800; // 5.8 segundos por tarjeta
+
+    function buildPresentationCards(playersList){
+      presentationTrack.innerHTML = '';
+      playersList.forEach(p=>{
+        const card = document.createElement('div');
+        card.className = 'presentation-card';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'presentation-avatar';
+        if (p.photo){
+          const img = document.createElement('img');
+          img.src = p.photo; avatar.appendChild(img);
+        }else{
+          avatar.textContent = initials(p.name);
+        }
+
+        const name = document.createElement('div');
+        name.className = 'presentation-name';
+        name.textContent = p.name || 'Jugador';
+
+        const sub = document.createElement('div');
+        sub.className = 'presentation-sub';
+        sub.textContent = 'Torneo Oficial YLP · Mario Kart';
+
+        card.appendChild(avatar);
+        card.appendChild(name);
+        card.appendChild(sub);
+
+        presentationTrack.appendChild(card);
+      });
+    }
+
+    function showPresentation(index){
+      const cards = presentationTrack.querySelectorAll('.presentation-card');
+      cards.forEach((c,i)=>{
+        if (i === index) c.classList.add('show');
+        else c.classList.remove('show');
+      });
+    }
+
+    function openPresentation(){
+      // Usa finalFour si existe; si no, todos los jugadores
+      const list = (state.finalFour && state.finalFour.length === 4)
+        ? state.finalFour
+        : state.players;
+
+      if (!list || list.length === 0) { notify('No hay jugadores que mostrar'); return; }
+
+      buildPresentationCards(list);
+      presentationIndex = 0;
+      showPresentation(presentationIndex);
+
+      // Mostrar overlay con fade
+      presentationOverlay.classList.add('show');
+      presentationOverlay.setAttribute('aria-hidden','false');
+
+      // Música
+      if (presentationSong){
+        presentationSong.currentTime = 0;
+        presentationSong.play().catch(()=>{ /* silencio si el navegador bloquea autoplay */ });
+      }
+
+      // Carrusel
+      clearInterval(presentationTimer);
+      let currentIndex = 0;
+      showPresentation(currentIndex);
+
+      presentationTimer = setInterval(()=>{
+        currentIndex++;
+        if (currentIndex >= list.length){
+          // 👉 si ya no quedan jugadores, cerramos presentación
+          closePresentation();
+        } else {
+          showPresentation(currentIndex);
+        }
+      }, SLIDE_MS);
+    }
+
+    function closePresentation(){
+      presentationOverlay.classList.remove('show');
+      presentationOverlay.setAttribute('aria-hidden','true');
+      clearInterval(presentationTimer);
+      presentationTimer = null;
+
+      if (presentationSong){
+        presentationSong.pause();
+        presentationSong.currentTime = 0;
+      }
+    }
+
+    // Cerrar con clic o Escape
+    presentationOverlay.addEventListener('click', closePresentation);
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'Escape' && presentationOverlay.classList.contains('show')) closePresentation();
+    });
+
+    // Botón de la toolbar
+    document.getElementById('startPresentation').addEventListener('click', openPresentation);
+
+    // Si haces reset, cierra la presentación por si estaba abierta
+    document.getElementById('resetState').addEventListener('click', closePresentation);
+  </script>
+</body>
+</html>
