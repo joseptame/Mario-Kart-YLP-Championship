@@ -626,7 +626,7 @@
         console.assert(state.finalFour.length === 4, 'Final Four debe tener 4 jugadores');
         console.assert(ffBar.style.display === 'block', 'La barra de Final Four debe mostrarse');
         // Reset limpia barra y estado
-        document.getElementById('resetState').click();
+        //document.getElementById('resetState').click();
         console.assert(state.rounds === 0 && state.finalFour.length === 0, 'Reset debe limpiar estado');
         console.assert(ffBar.style.display !== 'block', 'Tras reset la barra debe ocultarse');
       } catch(e){ console.warn('SelfTests:', e); }
